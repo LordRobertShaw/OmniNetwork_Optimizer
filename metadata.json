@@ -1,0 +1,6 @@
+{
+  "name": "OmniNetwork_Optimizer",
+  "description": "An interactive agent and workbench to optimize, configure, and maintain highly stable WireGuard, SSH, and Cloudflare Secure Tunnels, featuring bulk node orchestration and automatic reconnection capabilities.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

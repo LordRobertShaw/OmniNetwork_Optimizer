@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "Note": {
+      "title": "Keep Note",
+      "description": "A Google Keep-style notes or checklist resource synced to Firestore for persistent tunnel runbooks and credentials.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique note ID." },
+        "userId": { "type": "string", "description": "Owner user UID." },
+        "title": { "type": "string", "maxLength": 100, "description": "Note title." },
+        "content": { "type": "string", "maxLength": 2000, "description": "Text body content." },
+        "isList": { "type": "boolean", "description": "Whether this note is a checklist." },
+        "listItems": { "type": "array", "description": "Checklist items containing text and checked state." },
+        "color": { "type": "string", "enum": ["default", "red", "orange", "yellow", "green", "teal", "blue", "darkblue", "purple", "pink", "brown", "gray"], "description": "Card visual accent color." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp." }
+      },
+      "required": ["id", "userId", "title", "isList", "color"]
+    },
+    "ContactAlert": {
+      "title": "Network Contact Alert Rule",
+      "description": "An emergency network administrator contact rule configured to receive alerts when specified tunnel nodes fail.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique rule ID." },
+        "userId": { "type": "string", "description": "Owner user UID." },
+        "displayName": { "type": "string", "maxLength": 100, "description": "Contact display name." },
+        "email": { "type": "string", "maxLength": 100, "description": "Contact email address." },
+        "phoneNumber": { "type": "string", "maxLength": 30, "description": "Contact phone number." },
+        "assignedTunnels": { "type": "array", "description": "List of tunnel IDs that trigger alerts for this contact." },
+        "isAlertEnabled": { "type": "boolean", "description": "Whether notifications are active." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Rule creation timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Rule last update timestamp." }
+      },
+      "required": ["id", "userId", "displayName", "isAlertEnabled"]
+    }
+  },
+  "firestore": {
+    "/notes/{noteId}": {
+      "schema": { "$ref": "#/entities/Note" },
+      "description": "Google Keep-style runbook notes and command checklists."
+    },
+    "/contactsAlerts/{contactAlertId}": {
+      "schema": { "$ref": "#/entities/ContactAlert" },
+      "description": "Orchestrated contact alert rules synced from Google Contacts."
+    }
+  }
+}

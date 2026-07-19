@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. Global safety net - Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Entity validations
+    function isValidNote(note) {
+      return note.keys().hasAll(['id', 'userId', 'title', 'isList', 'color'])
+        && note.keys().size() <= 9
+        && isValidId(note.id)
+        && note.userId is string && note.userId.size() <= 128
+        && note.title is string && note.title.size() <= 100
+        && note.isList is bool
+        && (note.color == 'default' || note.color == 'red' || note.color == 'orange' || note.color == 'yellow' || note.color == 'green' || note.color == 'teal' || note.color == 'blue' || note.color == 'darkblue' || note.color == 'purple' || note.color == 'pink' || note.color == 'brown' || note.color == 'gray')
+        && (!note.keys().hasAny(['content']) || (note.content is string && note.content.size() <= 2000))
+        && (!note.keys().hasAny(['listItems']) || (note.listItems is list && note.listItems.size() <= 50))
+        && (!note.keys().hasAny(['createdAt']) || (note.createdAt is timestamp || note.createdAt is string))
+        && (!note.keys().hasAny(['updatedAt']) || (note.updatedAt is timestamp || note.updatedAt is string));
+    }
+
+    function isValidContactAlert(alert) {
+      return alert.keys().hasAll(['id', 'userId', 'displayName', 'isAlertEnabled'])
+        && alert.keys().size() <= 9
+        && isValidId(alert.id)
+        && alert.userId is string && alert.userId.size() <= 128
+        && alert.displayName is string && alert.displayName.size() <= 100
+        && alert.isAlertEnabled is bool
+        && (!alert.keys().hasAny(['email']) || (alert.email is string && alert.email.size() <= 100))
+        && (!alert.keys().hasAny(['phoneNumber']) || (alert.phoneNumber is string && alert.phoneNumber.size() <= 30))
+        && (!alert.keys().hasAny(['assignedTunnels']) || (alert.assignedTunnels is list && alert.assignedTunnels.size() <= 20))
+        && (!alert.keys().hasAny(['createdAt']) || (alert.createdAt is timestamp || alert.createdAt is string))
+        && (!alert.keys().hasAny(['updatedAt']) || (alert.updatedAt is timestamp || alert.updatedAt is string));
+    }
+
+    // Collection Rules
+    match /notes/{noteId} {
+      allow get, list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidId(noteId) && noteId == incoming().id && isValidNote(incoming());
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && incoming().userId == request.auth.uid && isValidNote(incoming()) && (incoming().createdAt == existing().createdAt) && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'isList', 'listItems', 'color', 'updatedAt']);
+    }
+
+    match /contactsAlerts/{contactAlertId} {
+      allow get, list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidId(contactAlertId) && contactAlertId == incoming().id && isValidContactAlert(incoming());
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && incoming().userId == request.auth.uid && isValidContactAlert(incoming()) && (incoming().createdAt == existing().createdAt) && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'phoneNumber', 'assignedTunnels', 'isAlertEnabled', 'updatedAt']);
+    }
+  }
+}
