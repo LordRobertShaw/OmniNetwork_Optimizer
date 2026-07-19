@@ -387,6 +387,8 @@ if (Test-Ping $DNS_A) {
 
   // Secure Encrypted ZIP Backup States
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [backupTab, setBackupTab] = useState<"zip" | "gdrive" | "rclone" | "obsidian">("zip");
+  const [backupCopied, setBackupCopied] = useState(false);
   const [backupPassword, setBackupPassword] = useState("");
   const [showBackupPassword, setShowBackupPassword] = useState(false);
   const [backupEncryption, setBackupEncryption] = useState<"zipCrypto" | "aes">("zipCrypto");
@@ -1241,6 +1243,65 @@ if (Test-Ping $DNS_A) {
       }
     });
     return vals;
+  };
+
+  const getObsidianTemplate = () => {
+    const dateStr = new Date().toISOString().split("T")[0];
+    const timeStr = new Date().toLocaleTimeString();
+    
+    let md = `---
+tags: [networking, wireguard, ssh, configuration, backup]
+created: ${dateStr} ${timeStr}
+version: v2.4.1
+app: OmniNetwork_Optimizer
+---
+
+# 🚀 OmniNetwork_Optimizer Configuration Blueprint (Version: v2.4.1)
+
+This configuration document was generated on **${dateStr}** at **${timeStr}** from your active **OmniNetwork_Optimizer** session. It serves as an uninhibited, version-controlled backup master files template for your **Obsidian Vault**.
+
+---
+
+## 🖥️ Workspace Parameters
+- **Target Operating System:** \`${selectedOS.toUpperCase()}\`
+- **Active Connection Blueprints:** ${PRESET_SEGMENTS.length} Segments Listed
+- **Gateway Security PIN:** Stored in client-side secure session locks
+
+---
+
+## 📦 Active Profiles & Direct Customizations
+
+`;
+
+    PRESET_SEGMENTS.forEach((segment) => {
+      const cleanPath = getOSFileTarget(segment.id, selectedOS, segment.fileTarget);
+      const codeBlock = getOSSpecificCodeTemplate(segment.id, selectedOS, segment.codeTemplate);
+      md += `### 📂 ${segment.name}
+- **Target Storage Path:** \`${cleanPath}\`
+- **Category:** \`${segment.category.toUpperCase()}\`
+- **Description:** ${segment.description}
+
+\`\`\`ini
+${codeBlock}
+\`\`\`
+
+---
+`;
+    });
+
+    md += `
+## 🛠️ Automated Restore Instructions
+To restore these configurations directly on your host machine, you can run the following interactive inline command block or extract the configuration elements manually:
+\`\`\`bash
+# Create target configuration directories
+mkdir -p \\\$(dirname "/etc/wireguard/wg0.conf") ~/.ssh/ /usr/local/bin/
+
+# Set correct security permissions
+chmod 700 ~/.ssh/
+chmod 600 ~/.ssh/config 2>/dev/null
+\`\`\`
+`;
+    return md;
   };
 
   const handleExportEncryptedZip = async () => {
@@ -4538,15 +4599,15 @@ iface usb0 inet dhcp
           onClick={() => setIsBackupModalOpen(false)}
         >
           <div 
-            className="bg-[#0c0c0e] border border-white/10 max-w-lg w-full rounded-xl overflow-hidden shadow-2xl flex flex-col transition-all transform scale-100"
+            className="bg-[#0c0c0e] border border-white/10 max-w-2xl w-full rounded-xl overflow-hidden shadow-2xl flex flex-col transition-all transform scale-100"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
             <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between bg-[#111115]">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                <ShieldCheck className="h-4 w-4 text-emerald-400 animate-pulse" />
                 <span className="text-xs font-mono font-bold tracking-wider text-white uppercase">
-                  Secure Encrypted ZIP Backup Gateway
+                  OmniNetwork Backup & Cloud Sync Hub
                 </span>
               </div>
               <button 
@@ -4557,107 +4618,334 @@ iface usb0 inet dhcp
               </button>
             </div>
 
+            {/* Modal Navigation Tabs */}
+            <div className="flex border-b border-white/5 bg-[#08080b] p-1 gap-1">
+              <button
+                type="button"
+                onClick={() => setBackupTab("zip")}
+                className={`flex-1 py-2 text-[10px] font-mono font-bold uppercase rounded transition-all cursor-pointer text-center ${
+                  backupTab === "zip"
+                    ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30"
+                    : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
+                }`}
+              >
+                💾 Local ZIP
+              </button>
+              <button
+                type="button"
+                onClick={() => setBackupTab("gdrive")}
+                className={`flex-1 py-2 text-[10px] font-mono font-bold uppercase rounded transition-all cursor-pointer text-center ${
+                  backupTab === "gdrive"
+                    ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30"
+                    : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
+                }`}
+              >
+                📁 Google Drive
+              </button>
+              <button
+                type="button"
+                onClick={() => setBackupTab("rclone")}
+                className={`flex-1 py-2 text-[10px] font-mono font-bold uppercase rounded transition-all cursor-pointer text-center ${
+                  backupTab === "rclone"
+                    ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30"
+                    : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
+                }`}
+              >
+                🚀 rclone Engine
+              </button>
+              <button
+                type="button"
+                onClick={() => setBackupTab("obsidian")}
+                className={`flex-1 py-2 text-[10px] font-mono font-bold uppercase rounded transition-all cursor-pointer text-center ${
+                  backupTab === "obsidian"
+                    ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30"
+                    : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
+                }`}
+              >
+                📓 Obsidian Vault
+              </button>
+            </div>
+
             {/* Modal Body */}
-            <div className="p-6 flex flex-col gap-4 overflow-y-auto max-h-[450px]">
-              <div className="text-[10px] font-mono text-gray-400 leading-relaxed bg-emerald-950/20 border border-emerald-500/10 rounded-lg p-3">
-                <span className="font-bold text-emerald-400 block mb-1">🛡️ MILITARY-GRADE CLIENT-SIDE ENCRYPTION</span>
-                Export all <strong className="text-white">{PRESET_SEGMENTS.length} tunnel configurations</strong> in the active workspace as a single ZIP. The archive files will be secured using standard password encryption, keeping your Private Keys and Endpoint IPs completely locked.
-              </div>
+            <div className="p-6 flex flex-col gap-4 overflow-y-auto max-h-[500px]">
+              {backupTab === "zip" && (
+                <div className="flex flex-col gap-4">
+                  <div className="text-[10px] font-mono text-gray-400 leading-relaxed bg-emerald-950/20 border border-emerald-500/10 rounded-lg p-3">
+                    <span className="font-bold text-emerald-400 block mb-1">🛡️ MILITARY-GRADE CLIENT-SIDE ENCRYPTION</span>
+                    Export all <strong className="text-white">{PRESET_SEGMENTS.length} tunnel configurations</strong> in the active workspace as a single ZIP. The archive files will be secured using standard password encryption, keeping your Private Keys and Endpoint IPs completely locked.
+                  </div>
 
-              {/* Password Input */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-mono font-bold text-gray-400 uppercase flex items-center justify-between">
-                  <span>Cryptographic Backup Passphrase</span>
-                  <span className="text-rose-400 text-[9px] lowercase font-normal">required</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showBackupPassword ? "text" : "password"}
-                    value={backupPassword}
-                    onChange={(e) => setBackupPassword(e.target.value)}
-                    placeholder="Enter a strong password to encrypt files"
-                    className="w-full bg-[#0e0e11] border border-white/10 rounded px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-emerald-500 pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowBackupPassword(!showBackupPassword)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-white"
-                  >
-                    {showBackupPassword ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-              </div>
+                  {/* Password Input */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-mono font-bold text-gray-400 uppercase flex items-center justify-between">
+                      <span>Cryptographic Backup Passphrase</span>
+                      <span className="text-rose-400 text-[9px] lowercase font-normal">required</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showBackupPassword ? "text" : "password"}
+                        value={backupPassword}
+                        onChange={(e) => setBackupPassword(e.target.value)}
+                        placeholder="Enter a strong password to encrypt files"
+                        className="w-full bg-[#0e0e11] border border-white/10 rounded px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-emerald-500 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowBackupPassword(!showBackupPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-white"
+                      >
+                        {showBackupPassword ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </div>
 
-              {/* Encryption selection */}
-              <div className="flex flex-col gap-1.5">
-                <span className="text-[10px] font-mono font-bold text-gray-400 uppercase">Zip Archive Encryption Type</span>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setBackupEncryption("zipCrypto")}
-                    className={`p-2.5 rounded border text-[10px] font-mono text-left transition cursor-pointer ${
-                      backupEncryption === "zipCrypto"
-                        ? "border-emerald-500 bg-emerald-500/5 text-emerald-400"
-                        : "border-white/5 bg-[#0e0e11] text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    <span className="font-bold block uppercase mb-0.5">ZipCrypto (Standard)</span>
-                    <span className="text-[9px] text-gray-500 block leading-tight">Highly compatible. Extract using native Windows Explorer & macOS Finder natively.</span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled
-                    className="p-2.5 rounded border text-[10px] font-mono text-left opacity-40 cursor-not-allowed border-white/5 bg-[#0e0e11] text-gray-500"
-                  >
-                    <span className="font-bold block uppercase mb-0.5">AES-256 (Strong)</span>
-                    <span className="text-[9px] text-gray-600 block leading-tight">Ultra secure. Requires external archive software (e.g., 7-Zip, WinZip) on standard OS.</span>
-                  </button>
-                </div>
-              </div>
+                  {/* Encryption selection */}
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-mono font-bold text-gray-400 uppercase">Zip Archive Encryption Type</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setBackupEncryption("zipCrypto")}
+                        className={`p-2.5 rounded border text-[10px] font-mono text-left transition cursor-pointer ${
+                          backupEncryption === "zipCrypto"
+                            ? "border-emerald-500 bg-emerald-500/5 text-emerald-400"
+                            : "border-white/5 bg-[#0e0e11] text-gray-400 hover:text-white"
+                        }`}
+                      >
+                        <span className="font-bold block uppercase mb-0.5">ZipCrypto (Standard)</span>
+                        <span className="text-[9px] text-gray-500 block leading-tight">Highly compatible. Extract using native Windows Explorer & macOS Finder natively.</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled
+                        className="p-2.5 rounded border text-[10px] font-mono text-left opacity-40 cursor-not-allowed border-white/5 bg-[#0e0e11] text-gray-500"
+                      >
+                        <span className="font-bold block uppercase mb-0.5">AES-256 (Strong)</span>
+                        <span className="text-[9px] text-gray-600 block leading-tight">Ultra secure. Requires external archive software (e.g., 7-Zip, WinZip) on standard OS.</span>
+                      </button>
+                    </div>
+                  </div>
 
-              {/* Files to include list */}
-              <div className="flex flex-col gap-1.5">
-                <span className="text-[10px] font-mono font-bold text-gray-400 uppercase">Blueprint Archive Manifesto</span>
-                <div className="bg-[#070709] border border-white/5 rounded-lg overflow-hidden divide-y divide-white/5 max-h-36 overflow-y-auto">
-                  {PRESET_SEGMENTS.map((segment) => {
-                    const cleanPath = getOSFileTarget(segment.id, selectedOS, segment.fileTarget)
-                      .replace(/^[a-zA-Z]:\\/, "")
-                      .replace(/^\//, "")
-                      .replace(/\\/g, "/")
-                      .replace(/\s*\(.*?\)\s*/g, "").trim();
-                    const finalPath = (cleanPath.includes("Manual Calibration") || cleanPath === "Manual Calibration script") 
-                      ? "usr/local/bin/mtu-sweep.sh" 
-                      : cleanPath;
+                  {/* Files to include list */}
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-mono font-bold text-gray-400 uppercase">Blueprint Archive Manifesto</span>
+                    <div className="bg-[#070709] border border-white/5 rounded-lg overflow-hidden divide-y divide-white/5 max-h-36 overflow-y-auto">
+                      {PRESET_SEGMENTS.map((segment) => {
+                        const cleanPath = getOSFileTarget(segment.id, selectedOS, segment.fileTarget)
+                          .replace(/^[a-zA-Z]:\\/, "")
+                          .replace(/^\//, "")
+                          .replace(/\\/g, "/")
+                          .replace(/\s*\(.*?\)\s*/g, "").trim();
+                        const finalPath = (cleanPath.includes("Manual Calibration") || cleanPath === "Manual Calibration script") 
+                          ? "usr/local/bin/mtu-sweep.sh" 
+                          : cleanPath;
 
-                    return (
-                      <div key={segment.id} className="p-2.5 flex items-center justify-between text-[10px] font-mono">
-                        <div className="flex flex-col gap-0.5 truncate pr-2">
-                          <span className="text-gray-300 font-bold truncate">{finalPath}</span>
-                          <span className="text-gray-500 text-[9px] truncate">{segment.name}</span>
-                        </div>
-                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0 uppercase ${
-                          segment.category === "wireguard" ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
-                          segment.category === "ssh" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
-                          segment.category === "watchdog" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
-                          "bg-purple-500/10 text-purple-400 border border-purple-500/20"
-                        }`}>
-                          {segment.category}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+                        return (
+                          <div key={segment.id} className="p-2.5 flex items-center justify-between text-[10px] font-mono">
+                            <div className="flex flex-col gap-0.5 truncate pr-2">
+                              <span className="text-gray-300 font-bold truncate">{finalPath}</span>
+                              <span className="text-gray-500 text-[9px] truncate">{segment.name}</span>
+                            </div>
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0 uppercase ${
+                              segment.category === "wireguard" ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
+                              segment.category === "ssh" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
+                              segment.category === "watchdog" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
+                              "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                            }`}>
+                              {segment.category}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-              {backupError && (
-                <div className="text-rose-400 font-mono text-[10px] text-center bg-rose-500/5 border border-rose-500/10 p-2.5 rounded-lg">
-                  {backupError}
+                  {backupError && (
+                    <div className="text-rose-400 font-mono text-[10px] text-center bg-rose-500/5 border border-rose-500/10 p-2.5 rounded-lg">
+                      {backupError}
+                    </div>
+                  )}
+
+                  {backupSuccess && (
+                    <div className="text-emerald-400 font-mono text-[10px] text-center bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-lg animate-pulse">
+                      {backupSuccess}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {backupSuccess && (
-                <div className="text-emerald-400 font-mono text-[10px] text-center bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-lg animate-pulse">
-                  {backupSuccess}
+              {backupTab === "gdrive" && (
+                <div className="flex flex-col gap-4">
+                  <div className="text-[10px] font-mono text-gray-400 leading-relaxed bg-blue-950/20 border border-blue-500/10 rounded-lg p-3">
+                    <span className="font-bold text-blue-400 block mb-1">📁 GOOGLE DRIVE VERSIONED BACKUPS</span>
+                    Back up your local network profiles directly to your Google Drive account. You can utilize an automated shell script to stage encrypted backups directly inside a dedicated, version-controlled sync folder (e.g. <strong className="text-white">v2.4.1_Backups</strong>).
+                  </div>
+
+                  {/* Option A: GDrive Backup Script */}
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-mono font-bold text-gray-400 uppercase">Interactive GDrive Sync Script</span>
+                    <p className="text-[9px] text-gray-500 font-mono leading-normal">
+                      Run this script locally to automatically bundle your active configs into a new date-and-version stamped GDrive synchronization folder:
+                    </p>
+                    <div className="relative">
+                      <pre className="bg-black/90 text-gray-300 border border-white/5 p-3 rounded-lg text-[9px] font-mono max-h-48 overflow-y-auto leading-tight whitespace-pre">
+{`#!/bin/bash
+# OmniNetwork_Optimizer - GDrive Version Sync
+VERSION="v2.4.1"
+DATE=$(date +%Y-%m-%d_%H-%M-%S)
+TARGET_DIR="$HOME/Google Drive/My Drive/OmniNetwork_Backups/\${VERSION}_\${DATE}"
+
+echo "📦 Generating uninhibited local backup staging directory..."
+mkdir -p "$TARGET_DIR"
+
+# Stage Active System Configurations
+cp -r /etc/wireguard/wg0.conf "$TARGET_DIR/" 2>/dev/null
+cp -r ~/.ssh/config "$TARGET_DIR/" 2>/dev/null
+
+echo "✅ Backup successfully created in Google Drive: \${VERSION}_\${DATE}"`}
+                      </pre>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`#!/bin/bash
+# OmniNetwork_Optimizer - GDrive Version Sync
+VERSION="v2.4.1"
+DATE=$(date +%Y-%m-%d_%H-%M-%S)
+TARGET_DIR="$HOME/Google Drive/My Drive/OmniNetwork_Backups/\${VERSION}_\${DATE}"
+
+echo "📦 Generating uninhibited local backup staging directory..."
+mkdir -p "$TARGET_DIR"
+
+# Stage Active System Configurations
+cp -r /etc/wireguard/wg0.conf "$TARGET_DIR/" 2>/dev/null
+cp -r ~/.ssh/config "$TARGET_DIR/" 2>/dev/null
+
+echo "✅ Backup successfully created in Google Drive: \${VERSION}_\${DATE}"`);
+                          setBackupCopied(true);
+                          setTimeout(() => setBackupCopied(false), 2000);
+                        }}
+                        className="absolute right-2 top-2 p-1.5 bg-white/5 border border-white/10 rounded hover:bg-white/10 text-gray-400 hover:text-white transition cursor-pointer text-[10px] font-mono font-bold flex items-center gap-1"
+                      >
+                        {backupCopied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                        {backupCopied ? "Copied!" : "Copy Code"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Note Workspace Sync */}
+                  <div className="bg-[#0e0e11] border border-white/5 rounded-lg p-3">
+                    <h4 className="text-[10px] font-mono font-bold text-gray-300 uppercase mb-1">⚡ Dynamic Notes GDrive Cloud Sync</h4>
+                    <p className="text-[9px] text-gray-500 font-mono leading-relaxed">
+                      Did you know? The **Keep Notes Workspace** in your side-panel has a native Google Drive cloud backup mechanism already built-in! Authenticate your Google Account once to save your notes, calibrations, and active workspace logs to Google Drive seamlessly.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {backupTab === "rclone" && (
+                <div className="flex flex-col gap-4">
+                  <div className="text-[10px] font-mono text-gray-400 leading-relaxed bg-amber-950/20 border border-amber-500/10 rounded-lg p-3">
+                    <span className="font-bold text-amber-400 block mb-1">🚀 RCLONE CLOUD REMOTE ORCHESTRATION</span>
+                    rclone is the Swiss-army knife for cloud storage. You can map Google Drive, OneDrive, Dropbox, or any SFTP target as an rclone remote, then synchronize versioned backup archives using automated cron daemons.
+                  </div>
+
+                  {/* Configuration step */}
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-mono font-bold text-gray-400 uppercase">1. Configure rclone Google Drive Remote</span>
+                    <p className="text-[9px] text-gray-500 font-mono leading-normal">
+                      Add this remote configuration block directly into your <code className="text-white bg-white/5 px-1 rounded">~/.config/rclone/rclone.conf</code> file:
+                    </p>
+                    <div className="relative">
+                      <pre className="bg-black/90 text-gray-300 border border-white/5 p-3 rounded-lg text-[9px] font-mono max-h-32 overflow-y-auto leading-tight whitespace-pre">
+{`[gdrive_remote]
+type = drive
+scope = drive
+token = {"access_token":"your_oauth_token","token_type":"Bearer"}
+team_drive = `}
+                      </pre>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`[gdrive_remote]
+type = drive
+scope = drive
+token = {"access_token":"your_oauth_token","token_type":"Bearer"}
+team_drive = `);
+                          setBackupCopied(true);
+                          setTimeout(() => setBackupCopied(false), 2000);
+                        }}
+                        className="absolute right-2 top-2 p-1.5 bg-white/5 border border-white/10 rounded hover:bg-white/10 text-gray-400 hover:text-white transition cursor-pointer text-[10px] font-mono font-bold flex items-center gap-1"
+                      >
+                        {backupCopied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                        {backupCopied ? "Copied!" : "Copy Config"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Backup Shell command */}
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-mono font-bold text-gray-400 uppercase">2. Versioned Sync Daemon Command</span>
+                    <p className="text-[9px] text-gray-500 font-mono leading-normal">
+                      Use this uninhibited CLI script to upload your encrypted ZIP straight to a brand-new version folder in GDrive:
+                    </p>
+                    <div className="relative">
+                      <pre className="bg-black/90 text-gray-300 border border-white/5 p-3 rounded-lg text-[9px] font-mono max-h-32 overflow-y-auto leading-tight whitespace-pre">
+{`#!/bin/bash
+# Sync local backups into versioned folders
+DATE_VERSION="v2.4.1_$(date +%F)"
+echo "🚀 Running uninhibited rclone push to gdrive_remote:\${DATE_VERSION}..."
+
+rclone sync ./omninetwork-optimizer-backup-linux-*.zip gdrive_remote:/OmniNetwork_Optimizer/Backups/\${DATE_VERSION} -P`}
+                      </pre>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`#!/bin/bash
+# Sync local backups into versioned folders
+DATE_VERSION="v2.4.1_$(date +%F)"
+echo "🚀 Running uninhibited rclone push to gdrive_remote:\${DATE_VERSION}..."
+
+rclone sync ./omninetwork-optimizer-backup-linux-*.zip gdrive_remote:/OmniNetwork_Optimizer/Backups/\${DATE_VERSION} -P`);
+                          setBackupCopied(true);
+                          setTimeout(() => setBackupCopied(false), 2000);
+                        }}
+                        className="absolute right-2 top-2 p-1.5 bg-white/5 border border-white/10 rounded hover:bg-white/10 text-gray-400 hover:text-white transition cursor-pointer text-[10px] font-mono font-bold flex items-center gap-1"
+                      >
+                        {backupCopied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                        {backupCopied ? "Copied!" : "Copy Code"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {backupTab === "obsidian" && (
+                <div className="flex flex-col gap-4">
+                  <div className="text-[10px] font-mono text-gray-400 leading-relaxed bg-purple-950/20 border border-purple-500/10 rounded-lg p-3">
+                    <span className="font-bold text-purple-400 block mb-1">📓 OBSIDIAN LOCAL-FIRST DOCUMENT VAULT</span>
+                    Obsidian is a stellar local-first personal knowledge management base. Keep your active configuration states, variables, and blueprints organized by copying this complete Markdown note template into your vault under a new version note: <code className="text-white font-bold bg-white/5 px-1 rounded">OmniNetwork_v2.4.1.md</code>.
+                  </div>
+
+                  {/* Note preview / box */}
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between animate-fade-in">
+                      <span className="text-[10px] font-mono font-bold text-gray-400 uppercase">Generated Obsidian Vault Note</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(getObsidianTemplate());
+                          setBackupCopied(true);
+                          setTimeout(() => setBackupCopied(false), 2000);
+                        }}
+                        className="p-1.5 bg-purple-500/10 border border-purple-500/20 rounded hover:bg-purple-500/20 text-purple-300 hover:text-white transition cursor-pointer text-[10px] font-mono font-bold flex items-center gap-1 shrink-0"
+                      >
+                        {backupCopied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                        {backupCopied ? "Copied Vault Template!" : "Copy Obsidian Note"}
+                      </button>
+                    </div>
+                    
+                    <div className="relative">
+                      <pre className="bg-black/90 text-gray-300 border border-white/5 p-3 rounded-lg text-[9px] font-mono max-h-60 overflow-y-auto leading-relaxed whitespace-pre-wrap select-all">
+                        {getObsidianTemplate()}
+                      </pre>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -4669,25 +4957,27 @@ iface usb0 inet dhcp
                 onClick={() => setIsBackupModalOpen(false)}
                 className="flex-1 py-2 rounded bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white text-xs font-mono font-bold tracking-wider transition uppercase cursor-pointer text-center"
               >
-                Cancel
+                {backupTab === "zip" ? "Cancel" : "Close Hub"}
               </button>
-              <button
-                type="button"
-                onClick={handleExportEncryptedZip}
-                disabled={isBackupExporting || !backupPassword}
-                className="flex-1 py-2 rounded bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:hover:bg-emerald-600 border border-emerald-500/20 text-white text-xs font-mono font-bold tracking-wider transition uppercase cursor-pointer text-center flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
-              >
-                {isBackupExporting ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <ShieldCheck className="h-3.5 w-3.5" /> Pack & Encrypt
-                  </>
-                )}
-              </button>
+              {backupTab === "zip" && (
+                <button
+                  type="button"
+                  onClick={handleExportEncryptedZip}
+                  disabled={isBackupExporting || !backupPassword}
+                  className="flex-1 py-2 rounded bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:hover:bg-emerald-600 border border-emerald-500/20 text-white text-xs font-mono font-bold tracking-wider transition uppercase cursor-pointer text-center flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
+                >
+                  {isBackupExporting ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="h-3.5 w-3.5" /> Pack & Encrypt
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>
